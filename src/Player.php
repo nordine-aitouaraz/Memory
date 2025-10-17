@@ -21,10 +21,6 @@ class Player
         $stmt->execute([$this->name, $moves, $seconds, $pairs]);
     }
 
-    /**
-     * Récupère tous les scores du joueur
-     * @return array<int,array{date:string,pairs:int,moves:int,seconds:int}>
-     */
     public function getScores(): array
     {
         $pdo = Db::get();

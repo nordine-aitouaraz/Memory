@@ -8,20 +8,16 @@ require __DIR__ . '/autoload.php';
 use App\Game;
 use App\Card;
 use App\Player;
-// use App\Storage\JsonStore;
-// $store = new JsonStore(__DIR__ . '/data');
 $game = new Game();
 
-// Simple router via action parameter
 $action = $_GET['action'] ?? 'home';
 
-// Ensure session state shape
 $_SESSION['memory'] = $_SESSION['memory'] ?? [
 	'player' => null,
 	'pairs' => null,
-	'deck' => [], // array of Card serialized as arrays
-	'revealed' => [], // indexes currently revealed in the attempt
-	'matched' => [], // indexes permanently matched
+	'deck' => [],
+	'revealed' => [],
+	'matched' => [],
 	'moves' => 0,
 	'start' => null,
 ];

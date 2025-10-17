@@ -1,5 +1,4 @@
 <?php
-// filepath: c:\laragon\www\Memory\src\Storage\Db.php
 namespace App\Storage;
 
 use PDO;

@@ -14,9 +14,6 @@ class Leaderboard
         $this->limit = $limit;
     }
 
-    /**
-     * Ajoute une entrée au classement (classement par coups, puis temps).
-     */
     public function add(string $name, int $moves, int $seconds, int $pairs): void
     {
         $pdo = Db::get();
@@ -24,11 +21,6 @@ class Leaderboard
         $stmt->execute([$name, $moves, $seconds, $pairs]);
     }
 
-    /**
-     * Récupère le top des scores pour une difficulté donnée (nombre de paires)
-     * @param int $pairs
-     * @return array<int,array{name:string,moves:int,seconds:int,pairs:int,date:string}>
-     */
     public function top(int $pairs): array
     {
         $pdo = Db::get();
