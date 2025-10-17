@@ -3,10 +3,10 @@ declare(strict_types=1);
 
 namespace App;
 
+use App\Storage\Db;
+
 class Leaderboard
 {
-    /** @var array<int,array{name:string,moves:int,seconds:int,pairs:int,date:string}> */
-    private array $entries = [];
     private int $limit;
 
     public function __construct(int $limit = 10)
@@ -19,24 +19,52 @@ class Leaderboard
      */
     public function add(string $name, int $moves, int $seconds, int $pairs): void
     {
-        $this->entries[] = [
-            'name' => $name,
-            'moves' => $moves,
-            'seconds' => $seconds,
-            'pairs' => $pairs,
-            'date' => date('c'),
-        ];
-        // Trier par coups croissants, puis temps croissant
-        usort($this->entries, function($a, $b) {
-            if ($a['moves'] !== $b['moves']) return $a['moves'] <=> $b['moves'];
-            return $a['seconds'] <=> $b['seconds'];
-        });
-        $this->entries = array_slice($this->entries, 0, $this->limit);
+        $pdo = Db::get();
+        $stmt = $pdo->prepare("INSERT INTO leaderboard (name, moves, seconds, pairs, date) VALUES (?, ?, ?, ?, NOW())");
+        $stmt->execute([$name, $moves, $seconds, $pairs]);
     }
 
-    /** @return array<int,array{name:string,moves:int,seconds:int,pairs:int,date:string}> */
-    public function top(): array
+    /**
+     * Récupère le top des scores pour une difficulté donnée (nombre de paires)
+     * @param int $pairs
+     * @return array<int,array{name:string,moves:int,seconds:int,pairs:int,date:string}>
+     */
+    public function top(int $pairs): array
     {
-        return $this->entries;
+        $pdo = Db::get();
+        // Sous-requête pour ne garder que le meilleur score (moves, puis seconds) par joueur
+        $sql = "
+            SELECT l1.name, l1.moves, l1.seconds, l1.pairs, l1.date
+            FROM leaderboard l1
+            INNER JOIN (
+                SELECT name, MIN(moves) as min_moves
+                FROM leaderboard
+                WHERE pairs = ?
+                GROUP BY name
+            ) l2 ON l1.name = l2.name AND l1.moves = l2.min_moves
+            INNER JOIN (
+                SELECT name, moves, MIN(seconds) as min_seconds
+                FROM leaderboard
+                WHERE pairs = ?
+                GROUP BY name, moves
+            ) l3 ON l1.name = l3.name AND l1.moves = l3.moves AND l1.seconds = l3.min_seconds
+            INNER JOIN (
+                SELECT name, moves, seconds, MIN(id) as min_id
+                FROM leaderboard
+                WHERE pairs = ?
+                GROUP BY name, moves, seconds
+            ) l4 ON l1.name = l4.name AND l1.moves = l4.moves AND l1.seconds = l4.seconds AND l1.id = l4.min_id
+            WHERE l1.pairs = ?
+            ORDER BY l1.moves ASC, l1.seconds ASC
+            LIMIT ?
+        ";
+        $stmt = $pdo->prepare($sql);
+        $stmt->bindValue(1, $pairs, \PDO::PARAM_INT);
+        $stmt->bindValue(2, $pairs, \PDO::PARAM_INT);
+        $stmt->bindValue(3, $pairs, \PDO::PARAM_INT);
+        $stmt->bindValue(4, $pairs, \PDO::PARAM_INT);
+        $stmt->bindValue(5, $this->limit, \PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
 }

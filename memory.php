@@ -8,9 +8,8 @@ require __DIR__ . '/autoload.php';
 use App\Game;
 use App\Card;
 use App\Player;
-use App\Storage\JsonStore;
-
-$store = new JsonStore(__DIR__ . '/data');
+// use App\Storage\JsonStore;
+// $store = new JsonStore(__DIR__ . '/data');
 $game = new Game();
 
 // Simple router via action parameter
@@ -136,14 +135,7 @@ if ($action === 'play') {
 		$lb = $store->loadLeaderboard($pairs);
 		$lb->add((string)$state['player'], $moves, $seconds, $pairs);
 		$store->saveLeaderboard($lb, $pairs);
-		$player = $store->loadPlayer((string)$state['player']);
-		$player->scores[] = [
-			'date' => date('c'),
-			'pairs' => $pairs,
-			'moves' => $moves,
-			'seconds' => $seconds,
-		];
-		$store->savePlayer($player);
+		// Stockage JSON supprimé, tout passe par MySQL
 		renderWin($state, $moves, $seconds);
 		exit;
 	}
@@ -162,160 +154,12 @@ function renderHome(?string $error = null): void {
 		// Détermine la difficulté sélectionnée pour le classement (GET ou défaut 6)
 		$selectedPairs = isset($_GET['classement_pairs']) ? (int)$_GET['classement_pairs'] : 6;
 		if ($selectedPairs < Game::MIN_PAIRS || $selectedPairs > Game::MAX_PAIRS) $selectedPairs = 6;
-		$lb = $store->loadLeaderboard($selectedPairs);
-		$top = $lb->top();
-		echo '<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Memory Game</title>';
-	echo '<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600&display=swap" rel="stylesheet">';
-	echo '<style>
-		body {
-			font-family: "Quicksand", "Segoe UI", Arial, sans-serif;
-			background: #181c24;
-			color: #f3f3f3;
-			margin: 0;
-			padding: 0;
-		}
-		main {
-			max-width: 700px;
-			margin: 32px auto 0 auto;
-			background: #232837;
-			border-radius: 18px;
-			box-shadow: 0 4px 32px rgba(0,0,0,0.18);
-			padding: 32px 24px 24px 24px;
-		}
-		h1, h2 {
-			font-weight: 600;
-			margin-top: 0;
-			color: #b2ff59;
-			letter-spacing: 1px;
-		}
-		.board {
-			display: grid;
-			grid-template-columns: repeat(6, 80px);
-			gap: 12px;
-			justify-content: center;
-			margin: 24px 0 16px 0;
-		}
-		.card {
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			width: 80px;
-			height: 80px;
-			background: #232837;
-			border-radius: 14px;
-			border: 1.5px solid #2e7d32;
-			font-size: 2.1rem;
-			text-decoration: none;
-			color: #b2ff59;
-			box-shadow: 0 2px 8px rgba(0,0,0,0.10);
-			transition: background 0.15s, box-shadow 0.15s;
-			cursor: pointer;
-		}
-		.card.revealed, .card.matched {
-			background: #263e2e;
-			border-color: #8bc34a;
-			color: #b2ff59;
-			box-shadow: 0 2px 12px rgba(139,195,74,0.13);
-			cursor: default;
-		}
-		.card.matched {
-			background: #1b2e1b;
-		}
-		.card:hover:not(.revealed):not(.matched) {
-			background: #232837;
-			box-shadow: 0 2px 12px rgba(139,195,74,0.10);
-		}
-		.controls {
-			margin-bottom: 18px;
-			display: flex;
-			gap: 18px;
-			align-items: center;
-			flex-wrap: wrap;
-		}
-		.btn {
-			padding: 8px 18px;
-			border: none;
-			border-radius: 7px;
-			background: linear-gradient(90deg,#388e3c 60%,#232837 100%);
-			color: #b2ff59;
-			font-weight: 600;
-			font-size: 1rem;
-			box-shadow: 0 2px 8px rgba(139,195,74,0.10);
-			cursor: pointer;
-			text-decoration: none;
-			transition: background 0.15s, box-shadow 0.15s;
-		}
-		.btn:hover {
-			background: linear-gradient(90deg,#8bc34a 60%,#263e2e 100%);
-			color: #fff;
-		}
-		table {
-			border-collapse: collapse;
-			width: 100%;
-			margin: 18px 0;
-			background: #232837;
-			border-radius: 10px;
-			overflow: hidden;
-			box-shadow: 0 2px 8px rgba(0,0,0,0.10);
-		}
-		th, td {
-			border: 1px solid #2e7d32;
-			padding: 8px 12px;
-			text-align: center;
-		}
-		th {
-			background: #263e2e;
-			font-weight: 600;
-			color: #b2ff59;
-		}
-		tr:nth-child(even) td {
-			background: #232837;
-		}
-		tr:nth-child(odd) td {
-			background: #1a1d26;
-		}
-		.player-name {
-			color: #7fff50 !important;
-			font-weight: 700;
-			letter-spacing: 0.5px;
-		}
-		.counter {
-			position: fixed;
-			top: 18px;
-			right: 24px;
-			background: #232837;
-			color: #b2ff59;
-			padding: 10px 18px;
-			border-radius: 999px;
-			font-weight: 600;
-			font-size: 1.1rem;
-			box-shadow: 0 2px 12px rgba(139,195,74,0.13);
-			border: 1.5px solid #2e7d32;
-			z-index: 100;
-		}
-		form label {
-			margin-right: 18px;
-			font-size: 1rem;
-		}
-		input[type="number"], input[type="text"], input[name="name"] {
-			padding: 6px 10px;
-			border-radius: 5px;
-			border: 1.2px solid #388e3c;
-			font-size: 1rem;
-			margin-left: 4px;
-			background: #181c24;
-			color: #b2ff59;
-		}
-		input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button {
-			-webkit-appearance: none;
-			margin: 0;
-		}
-		@media (max-width: 800px) {
-			main { padding: 10px 2vw; }
-			.board { grid-template-columns: repeat(4, 60px); gap: 8px; }
-			.card { width: 60px; height: 60px; font-size: 1.3rem; }
-		}
-	</style></head><body><main>';
+		$lb = new App\Leaderboard();
+		$top = $lb->top($selectedPairs);
+	       echo '<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Memory Game</title>';
+	       echo '<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600&display=swap" rel="stylesheet">';
+	       echo '<link rel="stylesheet" href="style.css">';
+	       echo '</head><body><main>';
 	echo '<h1>Memory Game</h1>';
 	if ($error) echo '<p style="color:#b00">' . htmlspecialchars($error) . '</p>';
 	echo '<h2>Nouvelle partie</h2>';
@@ -334,48 +178,7 @@ function renderHome(?string $error = null): void {
 		echo '<option value="' . $p . '"' . $sel . '>' . $p . ' paires</option>';
 	}
 	echo '</select></form>';
-// CSS pour le selecteur de difficulté et classement
-echo '<style>
-.difficulty-form {
-	margin-bottom: 18px;
-	display: inline-block;
-}
-.difficulty-label {
-	font-size: 1.08rem;
-	font-weight: 600;
-	color: #b2ff59;
-	margin-right: 10px;
-}
-.difficulty-select {
-	background: #232837;
-	color: #b2ff59;
-	border: 1.5px solid #2e7d32;
-	border-radius: 7px;
-	padding: 7px 38px 7px 18px;
-	font-size: 1.08rem;
-	font-family: "Quicksand", "Segoe UI", Arial, sans-serif;
-	font-weight: 600;
-	box-shadow: 0 2px 8px rgba(139,195,74,0.10);
-	outline: none;
-	transition: border-color 0.15s, box-shadow 0.15s;
-	appearance: none;
-	-webkit-appearance: none;
-	-moz-appearance: none;
-	position: relative;
-	background-image: url("data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjYjJmZjU5IiBoZWlnaHQ9IjE4IiB2aWV3Qm94PSIwIDAgMjQgMjQiIHdpZHRoPSIxOCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNNyAxMGw1IDUgNS01eiIvPjwvc3ZnPg==");
-	background-repeat: no-repeat;
-	background-position: right 12px center;
-	background-size: 18px 18px;
-}
-.difficulty-select:focus {
-	border-color: #8bc34a;
-	box-shadow: 0 0 0 2px #8bc34a44;
-}
-.difficulty-select option {
-	background: #232837;
-	color: #b2ff59;
-}
-</style>';
+
 	if (!$top) {
 		echo '<p>Aucun score encore pour cette difficulté.</p>';
 	} else {
@@ -390,22 +193,9 @@ echo '<style>
 
 function renderBoard(array $deck, array $state): void {
 	echo '<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Memory - Partie</title><meta http-equiv="refresh" content="">';
-	echo '<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600&display=swap" rel="stylesheet">';
-	echo '<style>
-		body { font-family: "Quicksand", "Segoe UI", Arial, sans-serif; background: #181c24; color: #f3f3f3; margin: 0; padding: 0; }
-		main { max-width: 700px; margin: 32px auto 0 auto; background: #232837; border-radius: 18px; box-shadow: 0 4px 32px rgba(0,0,0,0.18); padding: 32px 24px 24px 24px; }
-		h1, h2 { font-weight: 600; margin-top: 0; color: #b2ff59; letter-spacing: 1px; }
-		.board { display: grid; grid-template-columns: repeat(6, 80px); gap: 12px; justify-content: center; margin: 24px 0 16px 0; }
-		.card { display: flex; align-items: center; justify-content: center; width: 80px; height: 80px; background: #232837; border-radius: 14px; border: 1.5px solid #2e7d32; font-size: 2.1rem; text-decoration: none; color: #b2ff59; box-shadow: 0 2px 8px rgba(0,0,0,0.10); transition: background 0.15s, box-shadow 0.15s; cursor: pointer; }
-		.card.revealed, .card.matched { background: #263e2e; border-color: #8bc34a; color: #b2ff59; box-shadow: 0 2px 12px rgba(139,195,74,0.13); cursor: default; }
-		.card.matched { background: #1b2e1b; }
-		.card:hover:not(.revealed):not(.matched) { background: #232837; box-shadow: 0 2px 12px rgba(139,195,74,0.10); }
-		.controls { margin-bottom: 18px; display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
-		.btn { padding: 8px 18px; border: none; border-radius: 7px; background: linear-gradient(90deg,#388e3c 60%,#232837 100%); color: #b2ff59; font-weight: 600; font-size: 1rem; box-shadow: 0 2px 8px rgba(139,195,74,0.10); cursor: pointer; text-decoration: none; transition: background 0.15s, box-shadow 0.15s; }
-		.btn:hover { background: linear-gradient(90deg,#8bc34a 60%,#263e2e 100%); color: #fff; }
-		.counter { position: fixed; top: 18px; right: 24px; background: #232837; color: #b2ff59; padding: 10px 18px; border-radius: 999px; font-weight: 600; font-size: 1.1rem; box-shadow: 0 2px 12px rgba(139,195,74,0.13); border: 1.5px solid #2e7d32; z-index: 100; }
-		@media (max-width: 800px) { main { padding: 10px 2vw; } .board { grid-template-columns: repeat(4, 60px); gap: 8px; } .card { width: 60px; height: 60px; font-size: 1.3rem; } }
-	</style></head><body><main>';
+       echo '<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600&display=swap" rel="stylesheet">';
+       echo '<link rel="stylesheet" href="style.css">';
+       echo '</head><body><main>';
 	echo '<div class="controls">';
 	echo '<a class="btn" href="?action=restart">Revenir à l\'accueil</a> ';
 	echo '<span>Joueur: ' . htmlspecialchars((string)$state['player']) . '</span> | ';
@@ -440,7 +230,8 @@ function renderBoard(array $deck, array $state): void {
 function renderWin(array $state, int $moves, int $seconds): void {
 	echo '<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Memory - Gagné</title>';
 	echo '<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600&display=swap" rel="stylesheet">';
-	echo '<style>body{font-family: "Quicksand", "Segoe UI", Arial, sans-serif; background: #181c24; color: #f3f3f3; margin: 0; padding: 0;} main{max-width:700px;margin:32px auto 0 auto;background:#232837;border-radius:18px;box-shadow:0 4px 32px rgba(0,0,0,0.18);padding:32px 24px 24px 24px;} h1{font-weight:600;margin-top:0;color:#b2ff59;letter-spacing:1px;} .btn{padding:8px 18px;border:none;border-radius:7px;background:linear-gradient(90deg,#388e3c 60%,#232837 100%);color:#b2ff59;font-weight:600;font-size:1rem;box-shadow:0 2px 8px rgba(139,195,74,0.10);cursor:pointer;text-decoration:none;transition:background 0.15s,box-shadow 0.15s;} .btn:hover{background:linear-gradient(90deg,#8bc34a 60%,#263e2e 100%);color:#fff;} }</style></head><body><main>';
+	echo '<link rel="stylesheet" href="style.css">';
+	echo '</head><body><main>';
 	echo '<h1>Bravo ' . htmlspecialchars((string)$state['player']) . ' 🎉</h1>';
 	echo '<p>Coups: <strong>' . $moves . '</strong> | Paires: ' . (int)$state['pairs'] . ' | Temps: ' . $seconds . 's</p>';
 	echo '<p><a class="btn" href="?action=restart">Nouvelle partie</a></p>';
@@ -450,14 +241,15 @@ function renderWin(array $state, int $moves, int $seconds): void {
 function renderProfile(?App\Player $player): void {
 	echo '<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Profil</title>';
 	echo '<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600&display=swap" rel="stylesheet">';
-	echo '<style>body{font-family: "Quicksand", "Segoe UI", Arial, sans-serif; background: #181c24; color: #f3f3f3; margin: 0; padding: 0;} main{max-width:700px;margin:32px auto 0 auto;background:#232837;border-radius:18px;box-shadow:0 4px 32px rgba(0,0,0,0.18);padding:32px 24px 24px 24px;} h1{font-weight:600;margin-top:0;color:#b2ff59;letter-spacing:1px;} table{border-collapse:collapse;width:100%;margin:18px 0;background:#232837;border-radius:10px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.10);} td,th{border:1px solid #2e7d32;padding:8px 12px;text-align:center;} th{background:#263e2e;font-weight:600;color:#b2ff59;} tr:nth-child(even) td{background:#232837;} tr:nth-child(odd) td{background:#1a1d26;} .btn{padding:8px 18px;border:none;border-radius:7px;background:linear-gradient(90deg,#388e3c 60%,#232837 100%);color:#b2ff59;font-weight:600;font-size:1rem;box-shadow:0 2px 8px rgba(139,195,74,0.10);cursor:pointer;text-decoration:none;transition:background 0.15s,box-shadow 0.15s;} .btn:hover{background:linear-gradient(90deg,#8bc34a 60%,#263e2e 100%);color:#fff;} }</style></head><body><main>';
+	echo '<link rel="stylesheet" href="style.css">';
+	echo '</head><body><main>';
 	if (!$player) {
 		echo '<p>Profil introuvable.</p><p><a href="?">Retour</a></p>';
 		echo '</main></body></html>';
 		return;
 	}
 	echo '<h1>Profil de ' . htmlspecialchars($player->name) . '</h1>';
-	$scores = $player->scores;
+	$scores = $player->getScores();
 	if (!$scores) {
 		echo '<p>Aucun score pour le moment.</p>';
 	} else {
