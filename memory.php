@@ -110,7 +110,8 @@ if ($action === 'restart') {
 
 if ($action === 'profile') {
 	$name = (string)($_GET['name'] ?? '');
-	$player = $name ? $store->loadPlayer($name) : null;
+	// No $store service; instantiate directly
+	$player = $name ? new App\Player($name) : null;
 	renderProfile($player);
 	exit;
 }
@@ -128,9 +129,13 @@ if ($action === 'play') {
 		$moves = (int)$state['moves'];
 		$pairs = (int)$state['pairs'];
 		// Persist in leaderboard for this number of pairs
-		$lb = $store->loadLeaderboard($pairs);
-		$lb->add((string)$state['player'], $moves, $seconds, $pairs);
-		$store->saveLeaderboard($lb, $pairs);
+		$lb = new App\Leaderboard();
+		try {
+			$lb->add((string)$state['player'], $moves, $seconds, $pairs);
+		} catch (\Throwable $t) {
+			// Ne pas bloquer l'affichage de l'écran de victoire si la DB échoue
+			// (ex: table manquante, mauvais host/identifiants)
+		}
 		// Stockage JSON supprimé, tout passe par MySQL
 		renderWin($state, $moves, $seconds);
 		exit;
@@ -146,12 +151,17 @@ exit;
 // ------------------------------ Views ------------------------------
 
 function renderHome(?string $error = null): void {
-		global $store;
 		// Détermine la difficulté sélectionnée pour le classement (GET ou défaut 6)
 		$selectedPairs = isset($_GET['classement_pairs']) ? (int)$_GET['classement_pairs'] : 6;
 		if ($selectedPairs < Game::MIN_PAIRS || $selectedPairs > Game::MAX_PAIRS) $selectedPairs = 6;
 		$lb = new App\Leaderboard();
-		$top = $lb->top($selectedPairs);
+		try {
+			$top = $lb->top($selectedPairs);
+		} catch (\Throwable $t) {
+			// En production, éviter d'exposer les détails; afficher un message simple
+			$top = [];
+			$error = $error ?: 'Le classement est temporairement indisponible.';
+		}
 	       echo '<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Memory Game</title>';
 	       echo '<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600&display=swap" rel="stylesheet">';
 	       echo '<link rel="stylesheet" href="style.css">';

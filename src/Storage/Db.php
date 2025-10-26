@@ -9,9 +9,9 @@ class Db {
     public static function get() {
         if (self::$pdo === null) {
             self::$pdo = new PDO(
-                'mysql:host=localhost;dbname=memory;charset=utf8mb4',
-                'root', // utilisateur MySQL
-                '',     // mot de passe MySQL
+                'mysql:host=localhost;dbname=nordine-ait-ouaraz_memory;charset=utf8mb4',
+                'memory_user2', // utilisateur MySQL (Plesk)
+                'nrz92290plesk',     // mot de passe MySQL (Plesk)
                 [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
             );
         }
